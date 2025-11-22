@@ -35,6 +35,23 @@ pip install -r requirements_diarization.txt
 export HF_TOKEN="your_huggingface_token_here"
 ```
 
+## Test with Examples
+
+The project includes example audio files in the `examples/` directory for quick testing:
+
+```bash
+# Test with sample mixed audio (requires HF token)
+python separate_speakers.py examples/mix.flac --auto-separate --auth-token $HF_TOKEN
+
+# Test audio validation
+python test_audio.py examples/
+
+# View available examples
+ls examples/
+```
+
+See `examples/README.md` for detailed testing instructions.
+
 ## Quick Start
 
 ### Option 1: Automatic Diarization + Separation
@@ -138,7 +155,14 @@ mix_audio_seperator/
 ├── separate_speakers.py              # Audio separation script
 ├── test_audio.py                     # Audio testing utilities
 ├── run_diarization_example.py        # Example workflow
-├── data/                             # Sample audio files (optional)
+├── examples/                         # Example audio files and sample results
+│   ├── alice.wav                     # Single speaker sample
+│   ├── mix.flac                      # Mixed audio sample
+│   ├── female_annie.m4a              # Female voice sample (requires conversion)
+│   ├── male.m4a                      # Male voice sample (requires conversion)
+│   ├── audio.rttm                    # Sample RTTM diarization results
+│   ├── diarization_results/          # Sample diarization output
+│   └── README.md                     # Examples documentation
 └── results/                          # Output directory (created automatically)
     ├── audio.rttm                    # Diarization results in RTTM format
     ├── diarization_results.json      # Detailed diarization results

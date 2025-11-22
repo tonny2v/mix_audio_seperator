@@ -127,13 +127,19 @@ temp/
 .DS_Store
 Thumbs.db
 
-# Audio files (keep samples, ignore processed results)
+# Audio files (keep examples, ignore processed results)
 *.wav
 *.flac
 *.mp3
 *.m4a
 *.aac
 *.ogg
+!examples/*.wav
+!examples/*.flac
+!examples/*.mp3
+!examples/*.m4a
+!examples/*.aac
+!examples/*.ogg
 !sample_*
 !example_*
 
