@@ -87,6 +87,7 @@ python voice_diarization.py input.wav --output-dir results --auth-token hf_xxxx
 - Automatic audio format conversion using FFmpeg
 - Audio validation and preprocessing
 - Export results in RTTM and JSON formats
+- Direct audio file input and output folder specification
 
 ### `separate_speakers.py`
 Script for extracting individual speakers from mixed audio based on diarization results.
@@ -94,30 +95,21 @@ Script for extracting individual speakers from mixed audio based on diarization 
 **Usage:**
 ```bash
 # Using JSON results from diarization
-python separate_speakers.py input.wav --json diarization_results.json
+python separate_speakers.py input.wav --json diarization_results.json --output-dir separated_speakers
 
 # Using RTTM file
-python separate_speakers.py input.wav --rttm audio.rttm
+python separate_speakers.py input.wav --rttm audio.rttm --output-dir separated_speakers
 
 # Auto-mode (runs diarization + separation)
-python separate_speakers.py input.wav --auto-separate --auth-token hf_xxxx
+python separate_speakers.py input.wav --auto-separate --output-dir separated_speakers --auth-token hf_xxxx
 ```
 
 **Features:**
+- Direct audio file input and output folder specification
 - Merge segments per speaker or keep them separate
 - Audio enhancement and noise reduction
 - Multiple output formats (WAV, FLAC, MP3)
 - Detailed separation summary
-
-### `test_audio.py`
-Utility script for testing and validating audio files.
-
-```bash
-python test_audio.py audio_directory/
-```
-
-### `run_diarization_example.py`
-Example script demonstrating the complete workflow.
 
 ## Requirements
 
@@ -153,8 +145,6 @@ mix_audio_seperator/
 ├── requirements_diarization.txt       # Python dependencies
 ├── voice_diarization.py              # Speaker diarization script
 ├── separate_speakers.py              # Audio separation script
-├── test_audio.py                     # Audio testing utilities
-├── run_diarization_example.py        # Example workflow
 ├── examples/                         # Example audio files and sample results
 │   ├── alice.wav                     # Single speaker sample
 │   ├── mix.flac                      # Mixed audio sample

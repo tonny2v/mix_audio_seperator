@@ -40,8 +40,8 @@ python separate_speakers.py examples/mix.flac --auto-separate --auth-token $HF_T
 
 ### 3. Test Audio Files
 ```bash
-# Validate all example audio files
-python test_audio.py examples/
+# Validate audio files by loading them with diarization (quick check)
+python voice_diarization.py examples/alice.wav --output-dir examples/test_validation --auth-token $HF_TOKEN
 ```
 
 ### 4. Format Conversion Test
