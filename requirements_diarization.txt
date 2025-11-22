@@ -1,0 +1,13 @@
+# Voice Diarization Requirements
+# Core dependencies for speaker diarization
+
+torch>=1.9.0
+torchaudio>=0.9.0
+pyannote.audio>=3.1.0
+
+# Optional dependencies for additional functionality
+ffmpeg-python>=0.2.0  # Python interface for ffmpeg
+
+# Development dependencies (optional)
+pytest>=6.0.0  # For testing
+black>=22.0.0  # For code formatting
