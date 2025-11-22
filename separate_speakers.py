@@ -225,6 +225,162 @@ def save_audio_segment(segment: torch.Tensor, sample_rate: int,
         logger.error(f"Error saving {output_path}: {e}")
         return False
 
+def create_timeline_preserving_separation(waveform: torch.Tensor, sample_rate: int,
+                                         diarization_results: List[Dict],
+                                         speaker_id: str) -> torch.Tensor:
+    """
+    Create timeline-preserving separation for a specific speaker.
+    The output audio has the same duration as the original, but contains
+    only the target speaker's voice during their speaking times and silence otherwise.
+
+    Args:
+        waveform (torch.Tensor): Original audio waveform
+        sample_rate (int): Sample rate
+        diarization_results (List[Dict]): List of diarization segments
+        speaker_id (str): Target speaker ID to extract
+
+    Returns:
+        torch.Tensor: Timeline-preserved separated audio
+    """
+    total_samples = waveform.shape[1]
+    separated_audio = torch.zeros(1, total_samples, device=waveform.device)
+
+    # Filter segments for the target speaker
+    target_segments = [seg for seg in diarization_results if seg['speaker'] == speaker_id]
+
+    logger.info(f"Creating timeline for speaker {speaker_id}: {len(target_segments)} segments")
+
+    for segment in target_segments:
+        start_time = segment['start']
+        end_time = segment['end']
+
+        # Convert time to sample indices
+        start_sample = int(start_time * sample_rate)
+        end_sample = int(end_time * sample_rate)
+
+        # Ensure indices are within bounds
+        start_sample = max(0, start_sample)
+        end_sample = min(total_samples, end_sample)
+
+        if start_sample < end_sample:
+            # Extract the speaker's segment from original audio
+            speaker_segment = waveform[:, start_sample:end_sample]
+
+            # Apply enhancement to the segment
+            enhanced_segment = apply_audio_enhancement(speaker_segment, sample_rate)
+
+            # Place the enhanced segment in the correct timeline position
+            separated_audio[:, start_sample:end_sample] = enhanced_segment
+
+    return separated_audio
+
+def separate_speakers_with_timeline(audio_path: str, diarization_results: List[Dict],
+                                   output_dir: str = None,
+                                   min_segment_duration: float = 1.0,
+                                   audio_format: str = 'wav') -> Dict[str, List[str]]:
+    """
+    Separate speakers from mixed audio while preserving the original timeline.
+    Each speaker's output file has the same duration as the original audio,
+    with their voice present only during their speaking times and silence otherwise.
+
+    Args:
+        audio_path (str): Path to input audio file
+        diarization_results (List[Dict]): List of diarization segments
+        output_dir (str): Output directory for separated speakers (auto-generated if None)
+        min_segment_duration (float): Minimum segment duration in seconds
+        audio_format (str): Output audio format
+
+    Returns:
+        Dict mapping speaker IDs to list of output file paths
+    """
+    # Create output directory based on audio filename if not specified
+    if output_dir is None:
+        audio_name = Path(audio_path).stem
+        output_dir = f"{audio_name}_timeline_separated"
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Load audio file
+    waveform, sample_rate = load_audio_file(audio_path)
+
+    # Convert to mono for consistent processing
+    waveform = convert_to_mono(waveform)
+
+    # Get total duration for reference
+    total_duration = waveform.shape[1] / sample_rate
+    logger.info(f"Processing audio of {total_duration:.2f} seconds")
+
+    # Group segments by speaker and filter short segments
+    speaker_segments = {}
+    for segment in diarization_results:
+        speaker = segment['speaker']
+        duration = segment['duration']
+
+        # Skip very short segments
+        if duration < min_segment_duration:
+            logger.debug(f"Skipping short segment: {speaker}, {duration:.2f}s")
+            continue
+
+        if speaker not in speaker_segments:
+            speaker_segments[speaker] = []
+
+        speaker_segments[speaker].append(segment)
+
+    logger.info(f"Found {len(speaker_segments)} speakers")
+    for speaker, segments in speaker_segments.items():
+        total_duration = sum(s['duration'] for s in segments)
+        logger.info(f"Speaker {speaker}: {len(segments)} segments, {total_duration:.2f}s total")
+
+    # Create timeline-preserving separations
+    output_files = {}
+
+    for speaker in speaker_segments.keys():
+        # Create timeline-preserving separation for this speaker
+        separated_audio = create_timeline_preserving_separation(
+            waveform, sample_rate, diarization_results, speaker
+        )
+
+        # Save the timeline-preserved audio
+        output_path = os.path.join(output_dir, f"speaker_{speaker}_timeline.{audio_format}")
+        if save_audio_segment(separated_audio, sample_rate, output_path, audio_format):
+            output_files[speaker] = [output_path]
+            logger.info(f"Created timeline-preserved audio for speaker {speaker}: {output_path}")
+
+    # Save summary information
+    summary_path = os.path.join(output_dir, "timeline_separation_summary.json")
+    summary = {
+        'input_audio': audio_path,
+        'total_duration': total_duration,
+        'total_speakers': len(speaker_segments),
+        'speakers': {},
+        'settings': {
+            'min_segment_duration': min_segment_duration,
+            'audio_format': audio_format,
+            'timeline_preserved': True
+        }
+    }
+
+    for speaker, files in output_files.items():
+        segments_info = []
+        for segment in speaker_segments[speaker]:
+            segments_info.append({
+                'start': segment['start'],
+                'end': segment['end'],
+                'duration': segment['duration']
+            })
+
+        summary['speakers'][speaker] = {
+            'segment_count': len(speaker_segments[speaker]),
+            'output_files': [os.path.basename(f) for f in files],
+            'segments': segments_info
+        }
+
+    with open(summary_path, 'w') as f:
+        json.dump(summary, f, indent=2)
+
+    logger.info(f"Timeline separation summary saved to: {summary_path}")
+    return output_files
+
 def separate_speakers(audio_path: str, diarization_results: List[Dict],
                      output_dir: str = None,
                      merge_segments: bool = True,
@@ -418,6 +574,7 @@ Examples:
   python separate_speakers.py input.wav --json diarization_results.json
   python separate_speakers.py input.wav --auto-separate --auth-token hf_xxxx
   python separate_speakers.py input.wav --segments diarization_segments.json --output-dir output
+  python separate_speakers.py input.wav --json diarization_results.json --timeline
         """
     )
 
@@ -434,6 +591,8 @@ Examples:
                        help="Merge segments per speaker (default: True)")
     parser.add_argument("--no-merge", action="store_false", dest="merge_segments",
                        help="Don't merge segments - keep them separate")
+    parser.add_argument("--timeline", action="store_true",
+                       help="Create timeline-preserving separation - output files same length as original with silence during non-speaking periods")
     parser.add_argument("--min-duration", type=float, default=1.0,
                        help="Minimum segment duration in seconds (default: 1.0)")
     parser.add_argument("--format", choices=['wav', 'flac', 'mp3'], default='wav',
@@ -455,6 +614,9 @@ Examples:
 
     # Handle auto-separate mode
     if args.auto_separate:
+        if args.timeline:
+            logger.error("Timeline mode not supported with auto-separate yet. Please run diarization first, then use timeline mode.")
+            sys.exit(1)
         results = run_diarization_and_separation(
             args.input, args.output_dir, auth_token,
             merge_segments=args.merge_segments,
@@ -467,17 +629,27 @@ Examples:
         if not segments:
             parser.error("No valid diarization results found. Please provide --rttm, --json, or --auto-separate")
 
-        # Separate speakers
-        results = separate_speakers(
-            args.input, segments, args.output_dir,
-            merge_segments=args.merge_segments,
-            min_segment_duration=args.min_duration,
-            audio_format=args.format
-        )
+        # Choose separation method based on timeline flag
+        if args.timeline:
+            results = separate_speakers_with_timeline(
+                args.input, segments, args.output_dir,
+                min_segment_duration=args.min_duration,
+                audio_format=args.format
+            )
+        else:
+            results = separate_speakers(
+                args.input, segments, args.output_dir,
+                merge_segments=args.merge_segments,
+                min_segment_duration=args.min_duration,
+                audio_format=args.format
+            )
 
     # Determine actual output directory for display
-    actual_output_dir = args.output_dir
-    if actual_output_dir is None:
+    if args.output_dir:
+        actual_output_dir = args.output_dir
+    elif args.timeline:
+        actual_output_dir = f"{Path(args.input).stem}_timeline_separated"
+    else:
         actual_output_dir = f"{Path(args.input).stem}_separated"
 
     # Display results

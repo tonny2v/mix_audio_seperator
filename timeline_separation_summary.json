@@ -1,0 +1,16 @@
+{
+  "input_file": "examples/mix.flac",
+  "output_directory": ".",
+  "total_speakers": 3,
+  "total_segments": 9,
+  "output_files": {
+    "SPEAKER_01": [
+      "./speaker_SPEAKER_01_timeline.wav"
+    ],
+    "SPEAKER_02": [
+      "./speaker_SPEAKER_02_timeline.wav"
+    ]
+  },
+  "separation_method": "timeline_preserving",
+  "audio_enhancement": true
+}
