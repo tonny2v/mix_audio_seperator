@@ -14,7 +14,6 @@ This directory contains sample audio files for testing the audio separation tool
 ## Sample Results
 
 - `diarization_results/` - Example diarization output directory
-- `audio.rttm` - Sample RTTM format diarization results
 
 ## Quick Test Commands
 
@@ -31,11 +30,15 @@ python voice_diarization.py examples/alice.wav --output-dir examples/test_output
 
 ### 2. Test Audio Separation
 ```bash
-# Using sample RTTM file
-python separate_speakers.py examples/mix.flac --rttm examples/audio.rttm --output-dir examples/separated_speakers
+# Auto-mode (runs diarization + separation) - Recommended
+python separate_speakers.py examples/mix.flac --auto-separate --output-dir examples/separated_speakers --auth-token $HF_TOKEN
 
-# Auto-mode (runs diarization + separation)
-python separate_speakers.py examples/mix.flac --auto-separate --auth-token $HF_TOKEN
+# Or manual two-step process:
+# Step 1: Run diarization first
+python voice_diarization.py examples/mix.flac --output-dir examples/diarization_output --auth-token $HF_TOKEN
+
+# Step 2: Then separate speakers
+python separate_speakers.py examples/mix.flac --json examples/diarization_output/diarization_results.json --output-dir examples/separated_speakers
 ```
 
 ### 3. Test Audio Files
@@ -55,7 +58,6 @@ python voice_diarization.py examples/female_annie.m4a --output-dir examples/test
 After running the commands above, you should see:
 
 1. **Diarization Results**:
-   - `examples/test_output/audio.rttm`
    - `examples/test_output/diarization_results.json`
 
 2. **Separated Speakers**:

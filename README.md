@@ -43,8 +43,8 @@ The project includes example audio files in the `examples/` directory for quick 
 # Test with sample mixed audio (requires HF token)
 python separate_speakers.py examples/mix.flac --auto-separate --auth-token $HF_TOKEN
 
-# Test audio validation
-python test_audio.py examples/
+# Validate audio files by loading them
+python voice_diarization.py examples/alice.wav --output-dir temp_validation --auth-token $HF_TOKEN
 
 # View available examples
 ls examples/
@@ -192,7 +192,7 @@ python separate_speakers.py recording.wav --json results/diarization_results.jso
 python voice_diarization.py --test-separated separated_speakers/
 
 # Validate individual audio files
-python test_audio.py audio_directory/
+python voice_diarization.py your_audio.wav --output-dir validation_test --auth-token $HF_TOKEN
 ```
 
 ## Troubleshooting
